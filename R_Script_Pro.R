@@ -6,6 +6,11 @@ library("ggplot2")
 library("dplyr")
 library("stringr")
 
+##research question 
+##How does years of experience of developers in the U.S. influence the amount of their salaries? 
+
+
+
 dataset <- read.csv('Datasets/survey_results_public.csv')
 summary(dataset)
 
@@ -261,4 +266,25 @@ dataset <- subset(dataset,select=-c(MainBranch,Country))
 
 dataset <- subset(dataset,select=-c(ResponseId))
 
-summary(lm(ConvertedCompYearly~.,data=dataset))
+
+
+#Let's do some feature selection......
+#selections of features will be done using two methods 
+#common sense 
+#statistical method, such as Ridge Regression 
+
+
+
+ggplot(dataset)+
+  geom_point(aes(x=,y=US_State))+
+  ylim(0,10000000)
+
+
+str(dataset)
+
+
+
+
+
+
+

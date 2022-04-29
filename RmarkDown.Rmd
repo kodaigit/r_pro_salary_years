@@ -1,0 +1,771 @@
+---
+output:
+  word_document: default
+  html_document: default
+  '': default
+---
+
+---
+title: "CIS 585 Project"
+author: "Kodai Watanabe"
+date: "2/24/2020"
+output: word_document
+---
+
+  
+
+Install Packages 
+``` {r pressure, eval=FALSE}
+install.packages("rmarkdown")
+install.packages("knitr")
+install.packages("ggplot2")
+install.packages("plyr")
+install.packages("dplyr")
+install.packages("stringr")
+install.packages("caret")
+install.packages("hexbin")
+install.packages("leaps")
+install.packages("lmtest")
+install.packages("sandwich")
+install.packages("magrittr")
+install.packages("stargazer")
+```
+
+
+
+Load packages 
+```{r warning=FALSE, results='hide'}
+library("rmarkdown")
+library("knitr")
+library("ggplot2")
+library("plyr")
+library("dplyr")
+library("stringr")
+library("caret")
+library("car")
+library("leaps")
+library("lmtest")
+library("sandwich")
+library("magrittr")
+library("stargazer")
+```
+
+
+## Read data 
+We will download a dataset from StackOverFlow 2021 survey. 
+
+``` {r read_data}
+dataset <- read.csv('Datasets/survey_results_public.csv')
+```
+
+See what the data look like. 
+First, we will check data types of columns. Some data types need to be transformed. For isntance, Response ID shoud have character data type. 
+``` {r check_datatypes }
+str(dataset)
+```
+
+
+Count null values for each of the columns 
+```{r count null}
+null_counts <- sapply(dataset, (function(x) sum(is.na(x))))
+null_counts
+```
+
+
+Get respondents who are developers by profession and live in the U.S.
+```{r get respondents}
+dataset <-subset(dataset, MainBranch=='I am a developer by profession' & Country=='United States of America')
+```
+
+## Data Cleaning Part 
+
+From here, we will start clean data. 
+
+First, we will drop definitely unnecessary columns. I will drop columns related to this survey. 
+They should not be corrlated with the compensation of the respondents. 
+
+```{r drop unncessary columns}
+
+dataset <- subset(dataset, select=-c(SurveyLength,SurveyEase,UK_Country))
+
+```
+
+
+Change the data type of ID column. To prevent from applying a calculation on the column, I will convert it into character data type. 
+```{r change dtype of ID}
+dataset$ResponseId <- as.character(dataset$ResponseId)
+```
+
+
+
+Looking at YearsCode column, there are two string entries, less than 1 year and more than 50 years. 
+They occupy only 1.2% of all respondents. Thus, they can be considered outliers. So, I will drop rows containing the entries. 
+Then, I will change the column's data type into numeric. 
+```{r YearsCode}
+unique(dataset$YearsCode)
+dataset <- dataset[!dataset$YearsCode %in% c("More than 50 years","Less than 1 year"),]
+dataset$YearsCode <- as.numeric(dataset$YearsCode)
+```
+Same logic is applied to YearsCodePro column. 
+```{r YearsCodePro}
+unique(dataset$YearsCodePro)
+dataset <- dataset[!dataset$YearsCodePro == "Less than 1 year",]
+dataset$YearsCodePro <- as.numeric(dataset$YearsCodePro)
+```
+
+OrgSize 
+
+One of the unique values is a very long string. Let's rename it. I call it Other. 
+
+```{r}
+unique(dataset$OrgSize)
+dataset$OrgSize <- mapvalues(dataset$OrgSize,from=c("Just me - I am a freelancer, sole proprietor, etc."),
+                             to=c("Other"))
+```
+
+
+About EdLevel 
+Most of values of this variable are very long description. Let's rename them. 
+
+```{r edlevel}
+unique(dataset$EdLevel)
+from <- c("Bachelorâ€™s degree (B.A., B.S., B.Eng., etc.)","Other doctoral degree (Ph.D., Ed.D., etc.)" ,
+          "Masterâ€™s degree (M.A., M.S., M.Eng., MBA, etc.)", "Associate degree (A.A., A.S., etc.)",
+          "Secondary school (e.g. American high school, German Realschule or Gymnasium, etc.)",
+          "Some college/university study without earning a degree" ,
+          "Primary/elementary school",
+          "Professional degree (JD, MD, etc.)",
+          "Something else" )
+to <- c("Bachelor","Doctorate","Master","Associate","Secondary School","College study wihtout degree","Elementary school",
+        "Professional degree","Something else")
+dataset$EdLevel <- mapvalues(dataset$EdLevel,from,to)
+```
+
+Employement 
+
+This variable also contains a very long string. Let's rename it. 
+```{r}
+unique(dataset$Employment)
+
+dataset$Employment <- mapvalues(dataset$Employment,from=c("Independent contractor, freelancer, or self-employed"),to=c("Other"))
+```
+
+There are columns regarding tools developers want to work with and have worked with. I will drop columns that show tools they want to work with. 
+It is hard to imagine that tools they want to use are related to their current compensation. On the other hand, columns about tools they have worked with might be useful. They could describe how experienced developers are. I will deal with this type of columns in the later section.  
+
+```{r Want to work columns}
+wanto_columns <- grepl(pattern = "WantToWorkWith", x=names(dataset))
+dataset <- dataset[,!wanto_columns]
+
+```
+
+
+
+
+
+
+There are columns about StackOverFlow.The usage of the site is not likely to be ralated with salary amount, so let's drop the columns. 
+```{r drop stack overflow columns}
+dataset<- subset(dataset,select=-c(NEWSOSites,SOVisitFreq,SOAccount,SOPartFreq,SOComm))
+dataset<- subset(dataset,select=-c(NEWOtherComms))
+dataset<- subset(dataset, select=-c(NEWStuck))
+```
+
+
+Drop a column whihc tell what kinds of OS they use. It is irelevent to the research question. 
+```{r drop os}
+dataset <- subset(dataset, select=-c(OpSys))
+```
+
+Let's go back to the worked with columns. I will convert a list of tools they can use into the number of tools that they can use. 
+First, let's define a fucntion to calculate the number of tools. 
+```{r calculate tools func}
+calculate_elements <- function(elements)
+{
+    if(any(is.na(elements))){
+      return (0)
+    }
+    else{
+      return (length(elements))
+    }
+    
+}
+
+```
+
+
+
+
+Then, apply the function to the worked with columns. 
+```{r create columns}
+columns <- names(dataset)[grep(pattern = "HaveWorkedWith",x=names(dataset))]
+
+
+for(col_name in columns)
+{
+  dataset[,col_name] <- rapply(strsplit(dataset[,col_name],";"),calculate_elements)
+
+}
+```
+
+
+Drop rows that contain NA values 
+
+```{r drop nas}
+dataset <- na.omit(dataset)
+```
+
+I do not believe that how people learn code is crucial in deciding the compensation amount. So,let's drop them. 
+```{r drop how people learn codes}
+dataset <- subset(dataset, select=-c(LearnCode))
+
+```
+
+Types of developers could affect the amount of compensation. For instance, Data Scienties could earn more than front-end developers. 
+In this survey, one respondent can choose more than one type of developers. Thus, for each developer type available in this survey, let's create 
+a binary column which tells a person belongs to the type. 
+
+First, get all dev types available in this survey 
+``` {r devtypes}
+
+all_types =c()
+for (types in dataset$DevType){
+  for(type in strsplit(types,";")){
+    for(content in type){
+      if(!(as.character(content) %in% all_types)){
+        all_types <-append(all_types,as.character(content))
+    }
+    }
+  }
+}
+```
+
+Then, create the columns in the original data set. 
+```{r}
+
+dev_types <- setNames(data.frame(matrix(0,ncol = length(all_types), nrow = nrow(dataset))), all_types)
+dataset<- cbind(dataset,dev_types)
+
+for(id in dataset$ResponseId){
+  job_desc <- dataset[dataset$ResponseId==id,"DevType"]
+  description <- strsplit(job_desc,";")
+  for(outer_list in description)
+  {
+    for(inner_list in outer_list)
+    {
+      if (inner_list == "Other (please specify):")
+      {
+        dataset[dataset$ResponseId==id,"Other (please specify):"] <- 1
+      } else{
+        dataset[dataset$ResponseId==id,inner_list] <- 1
+      }
+    }
+  }
+}
+```
+
+
+This is what the columns look like. 
+```{r}
+head(dataset)[11:13]
+```
+
+
+Clean names of columns 
+```{r clean names of columns}
+colnames(dataset) <- gsub(" ","_",colnames(dataset))
+colnames(dataset) <- gsub(",","",colnames(dataset))
+colnames(dataset) <- gsub("-","_",colnames(dataset))
+colnames(dataset) <- gsub("/","",colnames(dataset))
+```
+
+
+rename some of colmn names.
+```{r}
+dataset$Other_devtypes <- dataset$`Other_(please_specify):`
+dataset$Senior_excecutives <- dataset$`Senior_Executive_(C_Suite_VP_etc.)`
+
+dataset <- subset(dataset, select=-c(`Other_(please_specify):`,`Senior_Executive_(C_Suite_VP_etc.)`))
+```
+
+Drop the original dev types column 
+```{r drop dev type}
+dataset <- subset(dataset, select=-c(DevType))
+```
+
+There is a sexuality column. I do not think that what sexual preference siginificantly affects the amount of salary. Thus, I will drop the column. This needs attention(transgender
+```{r drop sexuality}
+dataset <- subset(dataset,select =-c(Sexuality))
+```
+
+
+## Looking at each variable 
+
+Gender 
+Some respondents choose more than one gender categories. I think that it will be too detailed if I include all of these information. Since majority of respondents is male and the second biggest proportion is female. I will keep only respondents who are male and female. 
+
+
+```{r }
+dataset %>%group_by(Gender) %>%summarise(cnt = n())%>%mutate(percentage=(cnt/sum(cnt))*100)%>%head()
+
+```
+```{r}
+dataset<- dataset[(dataset$Gender=="Man") | (dataset$Gender=="Woman"),]
+```
+
+
+Ethnicity 
+This Ethnicity categorical column is also very imbalanced. Mosto of values are white. Proportions of other unique values are spread out 
+The problem is that the distinction is too detailed. Moreover, some of respondents have more than one Ethnicity even though there is a multiracial selection......
+Since I don't know how to deal with multiple entries of ethnicity for one respondent and most of respondents have one ethnicity type, 
+I will pick only rows that contain one value for this variable. 
+```{r}
+unique(dataset$Ethnicity)[1:10]
+dataset %>%group_by(Ethnicity) %>%summarise(cnt = n())%>%mutate(percentage=(cnt/sum(cnt))*100)%>%arrange(desc(percentage))%>%head(20)
+dataset <- dataset[(rapply(strsplit(dataset$Ethnicity,";"),length)==1),]
+```
+
+
+
+Now the dataset looks like this 
+```{r}
+unique(dataset$Ethnicity)
+```
+Since the entry of indigenous is too long, let's make it shorter. 
+```{r}
+dataset$Ethnicity <- mapvalues(dataset$Ethnicity, from=c("Indigenous (such as Native American, Pacific Islander, or Indigenous Australian)"), to=c("Indigenous"))
+```
+
+
+About acceptability 
+This variable is too detailed as well. Moreover, since they have jobs, their disability is not so severe that they cannot work as developers. 
+However, the disability might affect efficiency of their work..... If I make dummy variable for each of disability, it will be too detailed and sd will be very wide. So, let's make this column into binary that indicates whether people have disability or not. 
+
+
+```{r access, result='hide'}
+unique(dataset$Accessibility)[1:10]
+dataset %>%group_by(Accessibility) %>%summarise(cnt = n())%>%mutate(percentage=(cnt/sum(cnt))*100)
+```
+
+Convert the column into a binary column
+```{r}
+dataset[dataset$Accessibility=="None of the above","Accessibility"] <- 0
+dataset[dataset$Accessibility!=0,"Accessibility"] <- 1
+```
+
+
+About MentalHealth
+```{r Metal Health, results='hide'}
+unique(dataset$MentalHealth)
+```
+
+```{r}
+dataset %>%group_by(MentalHealth) %>%summarise(cnt = n())%>%mutate(percentage=(cnt/sum(cnt))*100)%>%arrange(desc(percentage))%>%head(5)
+
+```
+create a binary column 
+```{r}
+dataset[dataset$MentalHealth=="None of the above","MentalHealth"] <- 0
+dataset[dataset$MentalHealth!=0,"MentalHealth"] <- 1
+```
+
+About Currency 
+Let's look at currency. A very few respondents get paid in non-us dollars....Since I selected only developers in the united states, this does not sound intuitive. Given that the number is a very few and the strangeness, I guess they are wrong entries. Let's drop the rows that contain non-us currency 
+```{r}
+
+unique(dataset$Currency)
+
+```
+
+```{r}
+dataset %>%group_by(Currency) %>%summarise(cnt = n())%>%mutate(percentage=(cnt/sum(cnt))*100)%>%arrange(desc(percentage))
+dataset<- dataset[dataset$Currency == "USD\tUnited States dollar",]
+```
+
+About Trans 
+Let's get rows contains Yes or No
+```{r Trans }
+unique(dataset$Trans)
+```
+```{r }
+dataset <- dataset[(dataset$Trans=="No"|dataset$Trans=="Yes"),]
+```
+
+
+We are going to use ConvertedCompYearly as a dependent variable. Thus, let's drop some variables that are not necessary for our project. 
+```{r}
+dataset <- subset(dataset,select=-c(Currency, CompTotal, CompFreq))
+dataset <- subset(dataset,select=-c(MainBranch,Country))
+dataset <- subset(dataset,select=-c(ResponseId))
+```
+
+Okay. Let's end our preliminary data cleaning here. We will move onto some data analysis. 
+First, let's look at the dependent variable. 
+
+It seems that the variable is skewed a lot. Median and Mean are totally different. We need to consider dropping some values. 
+
+```{r summary_dependent}
+summary(dataset$ConvertedCompYearly)
+```
+
+
+Let's look at the box plot. Since the distribution is very skewed, it is impossible to see the whole distribution. 
+```{r boxplot_dependent}
+ggplot(dataset,aes(x=0,y=ConvertedCompYearly))+
+  geom_boxplot()
+```
+
+
+
+Let's see a relationship between the dependent variable and a variable of our interrest. 
+Due to very high compensation amount, we can't see anything about the most of values of the dependent variable. Let's divide the variable into two groups, high and low. 
+```{r YearsCode_Dependent}
+ggplot(dataset)+
+  geom_point(aes(x=YearsCodePro,y=ConvertedCompYearly))
+```
+```{r divide}
+high_comp <-dataset[dataset$ConvertedCompYearly>=2.5e+06,]
+low_comp <-dataset[dataset$ConvertedCompYearly<2.5e+06,]
+```
+
+Let's visualize them. 
+This is high compenstaion. There might be a linear pattern in this. 
+```{r high_comp}
+#let's see plots and correlatino coefficient 
+ggplot(high_comp)+
+  geom_point(aes(x=YearsCodePro,y=ConvertedCompYearly))
+```
+This is low compensation. It looks like that there are still some outliers. Majority of values are under 500000. Let's focus on the majority part. 
+```{r lowcomp}
+ggplot(low_comp)+
+  geom_point(aes(x=YearsCodePro,y=ConvertedCompYearly))
+```
+Get majority of the dependent variable and plot. When looking at this, there is a non linear pattern. The compensation amount goes up by a certain point and move horizontaly(or maybe decrease)
+```{r }
+majority_part <-dataset[dataset$ConvertedCompYearly<500000,]
+ggplot(majority_part,aes(x=YearsCodePro,y=ConvertedCompYearly))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  geom_smooth()
+```
+
+Let's apply log transformation on the independent variable. This is more linear. 
+```{r}
+ggplot(majority_part,aes(x=log(YearsCodePro),y=ConvertedCompYearly))+
+  geom_point()+
+  geom_smooth(method="lm")
+```
+Apply it on both of dependent and independent. This is great. 
+```{r}
+ggplot(majority_part,aes(x=log(YearsCodePro),y=log(ConvertedCompYearly)))+
+  geom_point()+
+  geom_smooth(method="lm")
+```
+
+
+Given these plots, I think that it would be better to focus on the majority of data point because the original dependent variable is very skewed and there is likely a patter in the majority of data points. So, in this project, let's focus on the majority part. 
+
+Look at the distribution of the maojority part. Okay, in the majority part, there are some datapoints that can be considered outliers(black points). I think that it is okay to actually considered them as outliers 
+```{r boxplot_majority}
+ggplot(dataset,aes(x=factor(0),y=ConvertedCompYearly))+
+  geom_boxplot()+
+  ylim(0,500000)
+```
+Points outside of wiskers are considered as outliers in the boxplot. So, Let's calculate the upper and lower bound of the whiskers. 
+```{r whiskers}
+upper_limit <-(173000-95000)*1.5 + 173000
+lower_limit <-(173000-95000)*1.5- 95000
+```
+
+Okay. Then, let's get rows that are not outliers. 
+```{r fileter_rows}
+dataset <- dataset[dataset$ConvertedCompYearly<=upper_limit & dataset$ConvertedCompYearly>=lower_limit ,]
+
+```
+
+Then, let's see the scatter plots again 
+```{r}
+
+ggplot(dataset,aes(x=YearsCodePro,y=ConvertedCompYearly))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  geom_smooth()
+```
+log transformation on the dependent variable 
+```{r}
+ggplot(dataset,aes(x=log(YearsCodePro),y=ConvertedCompYearly))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  geom_smooth()
+```
+log transformation on both of the variables. Even after log-log transformatino is applied, from a certain point, the pattern becoemes non linear. The compensation becomes constant or decreased from a certain point of years of professional coding experience. 
+```{r}
+ggplot(dataset,aes(x=log(YearsCodePro),y=log(ConvertedCompYearly)))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  geom_smooth()
+```
+
+Alright, let's see a relationship between the dependent and the each of the independent variables. 
+```{r employement}
+ggplot(data = dataset, mapping = aes(x =Employment, y =ConvertedCompYearly))+
+  geom_boxplot(horizontal=TRUE)+
+  coord_flip()
+```
+By states 
+```{r state, fig.width=12, fig.height=12}
+group_by_state <- group_by(dataset,US_State) %>% summarise(median=median(ConvertedCompYearly))
+ggplot(data=group_by_state, mapping=aes(x=reorder(US_State,median),y=median))+
+         geom_bar(stat="identity")+
+  xlab("US states")+
+  ylab("Median Compensation")+
+  coord_flip()
+```
+
+Education Level 
+```{r }
+ggplot(data = dataset, mapping = aes(x = reorder(EdLevel,ConvertedCompYearly, FUN=median), y =ConvertedCompYearly))+
+  geom_boxplot()+
+  coord_flip()
+
+```
+Age1stCode 
+```{r}
+ggplot(data = dataset, mapping = aes(x = reorder(Age1stCode,ConvertedCompYearly,FUN=median), y =ConvertedCompYearly))+
+  geom_boxplot()+coord_flip()
+
+```
+Organization Size 
+```{r}
+ggplot(data = dataset, mapping = aes(x = reorder(OrgSize,ConvertedCompYearly,FUN=median), y =ConvertedCompYearly))+
+  geom_boxplot()+coord_flip()
+```
+Age 
+```{r}
+ggplot(data = dataset, mapping = aes(x = reorder(Age,ConvertedCompYearly,FUN=median), y =ConvertedCompYearly))+
+  geom_boxplot()+coord_flip()
+```
+Looks like that there are some respondents who are under 18 years old. I am skeptic that there are professional developers who are under 18 years old. In this project, I consider them errors. Moreover, There are only two respondents who fall in the category. So, it is safe to drop them. 
+```{r}
+#4 persons are under 18 
+sum(dataset$Age=="Under 18 years old")
+#drop them 
+dataset <- dataset[dataset$Age!="Under 18 years old",]
+```
+Gender 
+```{r }
+ggplot(data = dataset,aes(x = Gender, y=ConvertedCompYearly))+
+  geom_boxplot()+coord_flip()
+```
+
+Trans 
+```{r}
+ggplot(data = dataset, mapping = aes(x =Trans, y =ConvertedCompYearly))+
+  geom_boxplot()+coord_flip()
+```
+Ethinicity 
+```{r }
+ggplot(data = dataset, mapping = aes(x =reorder(Ethnicity,ConvertedCompYearly,FUN=median), y =ConvertedCompYearly))+
+  geom_boxplot()+coord_flip()
+```
+Accessaibility 
+```{r}
+ggplot(data = dataset, mapping = aes(x = Accessibility, y =ConvertedCompYearly))+
+  geom_boxplot()+coord_flip()
+```
+Mentalhealth 
+```{r }
+ggplot(data = dataset,aes(x=MentalHealth,y=ConvertedCompYearly))+
+  geom_boxplot()+coord_flip()
+
+```
+
+Let's start modeling 
+First, let's run a linear regression using all of the independent variabels. 
+```{r linear_everything, results='hide'}
+linear_reg <- lm(ConvertedCompYearly~., data= dataset)
+summary(linear_reg)
+```
+
+
+
+Since there are too many independent variables, let's select them using backward regression. 
+We apply the featureselection on numerical columns only because R considers one of dummy variables as one variable and might drop it. 
+```{r backward}
+numerical_data <-select_if(dataset, is.numeric)
+regfit.bwd <- regsubsets(ConvertedCompYearly~. ,nvmax=45,data=numerical_data,method="backward")
+regfit_bwd_summary <- summary(regfit.bwd)
+```
+
+Get the combination of variables which produce the highest sdjusted R2
+
+```{r}
+which.max(regfit_bwd_summary$adjr2)
+#let's use this numerical columns for our regression model
+numerical_selected <- names(coef(regfit.bwd,28))[-1]
+names(coef(regfit.bwd,28))[-1]
+```
+Prepare a dataset for modeling. 
+```{r}
+categorical <-names(select_if(dataset,is.character))
+variables <- c(numerical_selected,categorical)
+regression_df <- subset(dataset,select=variables)
+regression_df$ConvertedCompYearly <- dataset$ConvertedCompYearly
+```
+
+Run the linear regression using all of the variables. 
+```{r}
+reg1 <- lm(ConvertedCompYearly~.,data=regression_df)
+stargazer(reg1,type = "text")
+```
+
+Make several plots regarding the model. 
+It looks like there is heteroskadasticity in the model. Let's see what causes it. 
+```{r}
+plot(reg1)
+```
+Check what causes the residual to vary 
+Maybe Age? 
+```{r check_residual,fig.height=6,fig.width=10}
+hetero_check <- data.frame(dataset)
+hetero_check$residual <- reg1$residuals
+hetero_check$fitted <- reg1$fitted.values
+ggplot(hetero_check,aes(x=fitted,y=residual,color=Age))+
+  geom_point()
+```
+Maybe EdLevel? 
+```{r fig.height=6,fig.width=10}
+ggplot(hetero_check,aes(x=fitted,y=residual,color=EdLevel))+
+  geom_point()
+```
+Maybe YearsCodePro 
+```{r fig.height=6,fig.width=10}
+ggplot(hetero_check,aes(x=fitted,y=residual,color=YearsCodePro))+
+  geom_point()
+```
+YearsCode? 
+```{r fig.height=6,fig.width=10}
+ggplot(hetero_check,aes(x=fitted,y=residual,color=YearsCode))+
+  geom_point()
+```
+
+EmploymentType?
+```{r fig.height=6,fig.width=10}
+ggplot(hetero_check,aes(x=fitted,y=residual,color=Employment))+
+  geom_point()
+```
+OrgSize? 
+```{r fig.height=6,fig.width=10}
+ggplot(hetero_check,aes(x=fitted,y=residual,color=OrgSize))+
+  geom_point()
+```
+Looks like professional code experience and age cause this situation. Let's solve this issue later. I also want to check if there is multicolllinearity. We will use VIF score. 
+
+It does not look like there is such an issue because no score exceeds 10. 
+```{r vif}
+vif(reg1)
+```
+ 
+ 
+ Let's drop Trans ad Ethnicity because they are unsignificant and their boxplots do not show significant difference. 
+ 
+```{r}
+ regression_df <-subset(regression_df,select=-c(Age1stCode,Trans,Ethnicity,Accessibility))
+```
+ 
+ Run a new model with new variables. There is not a significant change. 
+```{r}
+model_2nd <- lm(ConvertedCompYearly~.,data=regression_df)
+summary(model_2nd)
+```
+ 
+ Look at the plot 
+```{r}
+plot(model_2nd)
+```
+ Given the standardized residuals plot, there is no outlier. But, what about high leverage values? They tend to distort the linear model. So, if any, let's drop them. 
+```{r leverage}
+hv<-as.data.frame(hatvalues(model_2nd))
+mn<-mean(hatvalues(model_2nd))
+hv$warn <- ifelse(hv[, 'hatvalues(model_2nd)']>3*mn, 'x3',
+                  ifelse(hv[, 'hatvalues(model_2nd)']>2*mn, 'x3', '-' ))
+hv_high <- subset(hv, warn%in%c("x2", "x3"))
+regression_df <-regression_df[!rownames(regression_df) %in% rownames(hv_high),]
+```
+ 
+Run the model. There is not a significant change. 
+```{r}
+model_3rd <-lm(ConvertedCompYearly~.,data=regression_df)
+summary(model_3rd)
+
+```
+
+```{r}
+plot(model_3rd)
+```
+ Check residual and fitted values plot again. 
+```{r fig.height=6,fig.width=10}
+hetero_check_reg3 <- data.frame(regression_df)
+hetero_check_reg3$residual <- model_3rd$residuals
+hetero_check_reg3$fitted <- model_3rd$fitted.values
+ggplot(hetero_check_reg3,aes(x=fitted,y=residual,color=YearsCodePro))+
+  geom_point()
+```
+ Age
+```{r fig.height=6,fig.width=10}
+hetero_check_reg3$fitted <- model_3rd$fitted.values
+ggplot(hetero_check_reg3,aes(x=fitted,y=residual,color=Age))+
+  geom_point()
+```
+ 
+Since we know that there is a non-linear relationship between professional coding experience and compensation, let's apply log transformation. First, let's apply it on the YearsCode and yearscode pro 
+
+```{r}
+no_leverage_df_log <- data.frame(regression_df)
+no_leverage_df_log$log_yearscode <- log(no_leverage_df_log$YearsCode)
+no_leverage_df_log$log_yearscodepro <- log(no_leverage_df_log$YearsCodePro)
+no_leverage_df_log<-subset(no_leverage_df_log,select=-c(YearsCode,YearsCodePro))
+```
+ 
+Run the model
+The adjusted R2 sliggtly increase
+```{r }
+model_log_on_ind<- lm(ConvertedCompYearly~., data=no_leverage_df_log)
+summary(model_log_on_ind)
+```
+```{r}
+plot(model_log_on_ind)
+```
+ 
+ Let's apply it on the dependent as well. This should create a better linear relatinoship. 
+```{r}
+
+no_leverage_df_log_log <- data.frame(regression_df)
+no_leverage_df_log_log$log_compensation <- log(no_leverage_df_log_log$ConvertedCompYearly)
+no_leverage_df_log_log$log_yearscode <- log(no_leverage_df_log_log$YearsCode)
+no_leverage_df_log_log$log_yearscodepro <- log(no_leverage_df_log_log$YearsCodePro)
+
+
+no_leverage_df_log_log<-subset(no_leverage_df_log_log,select=-c(ConvertedCompYearly))
+
+```
+ 
+ 
+Run the model. 
+```{r}
+model_log_log <- lm(log_compensation~., data=no_leverage_df_log_log)
+summary(model_log_log)
+```
+ 
+```{r}
+plot(model_log_log)
+```
+ 
+ The red line in the residuals and fitted values plot becomes non linear and the residuals tend to be negative. I think that this is because the growth of salary amount get smaller and smaller as the salary amount increases. So, from a certain point, there is no linear relationship. Moreover, from this plot, we can see that the variance of errors is not still constant. We might want to utilize the robustus regression model to make our p-values accurate. Let's apply that. 
+
+```{r }
+model_log_logcluster <- coeftest(model_log_log, vcovCL, cluster = no_leverage_df_log_log$Age)
+model_log_logcluster
+```
+```
+
