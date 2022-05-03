@@ -12,7 +12,46 @@ date: "2/24/2020"
 output: word_document
 ---
 
-  
+
+## Abstract 
+
+In this project, I tried to find an answer for a research question, How does years of experience of developers affect their compensation. Figuring out the answer is beneficial for HR people and job seekers. It is expected that HR people can use the finding to provide a better estimate of compensation and the job seekers can know how much they should expect as salaries based on their experience. 
+
+It is argued that more experience lead to higher compensation in general. In this research, I examined the relationship in the context of developers. To implement the research, I got data from a survey conducted by Stack Overflow in 2021 and did a regression analysis. I found that for each one percent increase in the professional experience as a developr, there is an increase of 0.181% in the compensation amount. In the regression analysis, the length of mere coding experience does not significantly affect the compensation from a standpoint of statistics. 
+
+However, this relationship between the professional experience and the compensation is applied to only developers who make less than a compensation amount of 12 in the logarithmoic scale. This limitation arises because of non-linearity in the data. 
+
+Based on the findings, I would recommend HR people to focus on the professional experience of coding rather than mere coding experience when estimating the compensation. More professional experience causes the increase of the compensation, so failing to pay enough money for certain professional experience lead to not be able to hire a good candidate. 
+
+For job seekers, I would encourage to gain internships to gain professional experience. 
+
+## Introduction 
+
+This research project tries to answer a question, how does years of experience of developers affect their salaries in the U.S.? Years of experiences are generally considered one of factors that determine the amount of salary. This is because, the longer you do a job, the more productive you become (Torpey, 2015). It is mentioned by an article that it is typical to get paid more if you have more experience (Salary.com, n.d.). In job postings of developers, some years of experience, such as 5 years, is often seen as a requirement. This research project will test how significant the factor is for the determination of salary of developers in the U.S.
+
+This research project is important for two reasons. One is that the findings can give people in HR an insight about how impactful years of experience are on a figure of salary. They could provide more accurate estimate of salary based on the findings. Second is that the results of the project could help job seekers and students to determine whether their years of experience are valid against salaries shown by employers. 
+
+
+## Literature Review 
+
+You get paid more as you gain more experience even though this is observed in years of experiences up to 25 years; the base salary in the U.S. increases by $1500 for one-year increase in years of experience on average (Sauro, 2014). In a study focusing on the Indian IT industry, it is suggested that salary is positively related with work experience (Dash et al., 2017). 
+
+Other factors also affect the amount of salary. For instance, education is one of them. Workers who possess higher degree, professional certification, or licensure might get paid more than others even though it is about the same industry (Torpey, 2015).
+
+## Theory 
+
+The years of experiences as developers increases the amount of their compensation, but the slope of the growth get flattened. 
+
+## Data 
+I got data from a survey conducted by Stack Overflow in 2021. 
+
+https://insights.stackoverflow.com/survey
+
+## Methodology 
+
+From this section, I show all of what I did in this project to arrrive the conclusion I discussed earlier. 
+
+##Code
 
 Install Packages 
 ``` {r pressure, eval=FALSE}
@@ -58,7 +97,7 @@ We will download a dataset from StackOverFlow 2021 survey.
 dataset <- read.csv('Datasets/survey_results_public.csv')
 ```
 
-See what the data look like. 
+See what the data looks like. 
 First, we will check data types of columns. Some data types need to be transformed. For isntance, Response ID shoud have character data type. 
 ``` {r check_datatypes }
 str(dataset)
@@ -72,17 +111,17 @@ null_counts
 ```
 
 
-Get respondents who are developers by profession and live in the U.S.
+Get respondents who are developers by profession and live in the U.S.because they are what I am interested in. 
 ```{r get respondents}
 dataset <-subset(dataset, MainBranch=='I am a developer by profession' & Country=='United States of America')
 ```
 
-## Data Cleaning Part 
+## Data Cleaning 
 
-From here, we will start clean data. 
+From here, we will start cleaning the data. 
 
 First, we will drop definitely unnecessary columns. I will drop columns related to this survey. 
-They should not be corrlated with the compensation of the respondents. 
+They should not be corrlated with the compensations of the respondents. 
 
 ```{r drop unncessary columns}
 
@@ -113,8 +152,7 @@ dataset <- dataset[!dataset$YearsCodePro == "Less than 1 year",]
 dataset$YearsCodePro <- as.numeric(dataset$YearsCodePro)
 ```
 
-OrgSize 
-
+Let's look at OrgSize column. 
 One of the unique values is a very long string. Let's rename it. I call it Other. 
 
 ```{r}
@@ -124,8 +162,7 @@ dataset$OrgSize <- mapvalues(dataset$OrgSize,from=c("Just me - I am a freelancer
 ```
 
 
-About EdLevel 
-Most of values of this variable are very long description. Let's rename them. 
+About EdLevel, most of values of this variable are very long descriptions. Let's rename them. 
 
 ```{r edlevel}
 unique(dataset$EdLevel)
@@ -141,9 +178,7 @@ to <- c("Bachelor","Doctorate","Master","Associate","Secondary School","College 
 dataset$EdLevel <- mapvalues(dataset$EdLevel,from,to)
 ```
 
-Employement 
-
-This variable also contains a very long string. Let's rename it. 
+Regarding Employement, this variable also contains a very long string. Let's rename it. 
 ```{r}
 unique(dataset$Employment)
 
@@ -151,7 +186,7 @@ dataset$Employment <- mapvalues(dataset$Employment,from=c("Independent contracto
 ```
 
 There are columns regarding tools developers want to work with and have worked with. I will drop columns that show tools they want to work with. 
-It is hard to imagine that tools they want to use are related to their current compensation. On the other hand, columns about tools they have worked with might be useful. They could describe how experienced developers are. I will deal with this type of columns in the later section.  
+It is hard to imagine that tools they want to use are related to their current compensation. On the other hand, columns about tools they have worked with might be useful. They could describe how experienced the developers are. I will deal with this type of columns in the later section.  
 
 ```{r Want to work columns}
 wanto_columns <- grepl(pattern = "WantToWorkWith", x=names(dataset))
@@ -162,9 +197,7 @@ dataset <- dataset[,!wanto_columns]
 
 
 
-
-
-There are columns about StackOverFlow.The usage of the site is not likely to be ralated with salary amount, so let's drop the columns. 
+There are columns about Stack Overflow.The usage of the site has things to do with the compensation amount, so let's drop the columns. 
 ```{r drop stack overflow columns}
 dataset<- subset(dataset,select=-c(NEWSOSites,SOVisitFreq,SOAccount,SOPartFreq,SOComm))
 dataset<- subset(dataset,select=-c(NEWOtherComms))
@@ -177,8 +210,9 @@ Drop a column whihc tell what kinds of OS they use. It is irelevent to the resea
 dataset <- subset(dataset, select=-c(OpSys))
 ```
 
-Let's go back to the worked with columns. I will convert a list of tools they can use into the number of tools that they can use. 
-First, let's define a fucntion to calculate the number of tools. 
+Let's go back to the worked with columns. Those columns contain tools' names they have used. 
+I will convert the list of names into the number of tool. s
+First, let's define a function to calculate the number of tools. 
 ```{r calculate tools func}
 calculate_elements <- function(elements)
 {
@@ -215,7 +249,7 @@ Drop rows that contain NA values
 dataset <- na.omit(dataset)
 ```
 
-I do not believe that how people learn code is crucial in deciding the compensation amount. So,let's drop them. 
+I do not believe that how people learn code is crucial in deciding the compensation amount. So, let's drop a column about how they learned coding. 
 ```{r drop how people learn codes}
 dataset <- subset(dataset, select=-c(LearnCode))
 
@@ -267,9 +301,8 @@ for(id in dataset$ResponseId){
 
 This is what the columns look like. 
 ```{r}
-head(dataset)[11:13]
+head(dataset[c('Developer, full-stack','Engineer, data','Data scientist or machine learning specialist')])
 ```
-
 
 Clean names of columns 
 ```{r clean names of columns}
@@ -293,7 +326,7 @@ Drop the original dev types column
 dataset <- subset(dataset, select=-c(DevType))
 ```
 
-There is a sexuality column. I do not think that what sexual preference siginificantly affects the amount of salary. Thus, I will drop the column. This needs attention(transgender
+There is a sexuality column. I do not think that a sexual preference significantly affects the amount of salary. Thus, I will drop the column.
 ```{r drop sexuality}
 dataset <- subset(dataset,select =-c(Sexuality))
 ```
@@ -301,8 +334,8 @@ dataset <- subset(dataset,select =-c(Sexuality))
 
 ## Looking at each variable 
 
-Gender 
-Some respondents choose more than one gender categories. I think that it will be too detailed if I include all of these information. Since majority of respondents is male and the second biggest proportion is female. I will keep only respondents who are male and female. 
+### Gender 
+Some respondents choose more than one gender categories. I think that it will be too detailed if I include all of these information. Since majority of respondents is male and the second biggest proportion is female. I will keep only male and female respondents. 
 
 
 ```{r }
@@ -314,9 +347,9 @@ dataset<- dataset[(dataset$Gender=="Man") | (dataset$Gender=="Woman"),]
 ```
 
 
-Ethnicity 
-This Ethnicity categorical column is also very imbalanced. Mosto of values are white. Proportions of other unique values are spread out 
-The problem is that the distinction is too detailed. Moreover, some of respondents have more than one Ethnicity even though there is a multiracial selection......
+### Ethnicity 
+This Ethnicity categorical column is also very imbalanced. Most of values are white. Proportions of other unique values spread out. 
+The problem is that the distinction is too detailed. Moreover, some of respondents have more than one Ethnicity even though there is a option called multiracial. 
 Since I don't know how to deal with multiple entries of ethnicity for one respondent and most of respondents have one ethnicity type, 
 I will pick only rows that contain one value for this variable. 
 ```{r}
@@ -337,9 +370,9 @@ dataset$Ethnicity <- mapvalues(dataset$Ethnicity, from=c("Indigenous (such as Na
 ```
 
 
-About acceptability 
-This variable is too detailed as well. Moreover, since they have jobs, their disability is not so severe that they cannot work as developers. 
-However, the disability might affect efficiency of their work..... If I make dummy variable for each of disability, it will be too detailed and sd will be very wide. So, let's make this column into binary that indicates whether people have disability or not. 
+### Accessibility 
+This variable is too detailed as well. Moreover, since they have jobs, their disabilities are not so severe that they cannot work as developers. 
+However, the disabilities might affect efficiency of their work. If I make dummy variable for each of disabilities, it will be too detailed and sd will be very wide. So, let's make this column into a binary column that indicates whether people have a disability or not. 
 
 
 ```{r access, result='hide'}
@@ -354,7 +387,8 @@ dataset[dataset$Accessibility!=0,"Accessibility"] <- 1
 ```
 
 
-About MentalHealth
+### Mental Health 
+
 ```{r Metal Health, results='hide'}
 unique(dataset$MentalHealth)
 ```
@@ -369,8 +403,9 @@ dataset[dataset$MentalHealth=="None of the above","MentalHealth"] <- 0
 dataset[dataset$MentalHealth!=0,"MentalHealth"] <- 1
 ```
 
-About Currency 
-Let's look at currency. A very few respondents get paid in non-us dollars....Since I selected only developers in the united states, this does not sound intuitive. Given that the number is a very few and the strangeness, I guess they are wrong entries. Let's drop the rows that contain non-us currency 
+### Currency 
+
+Let's look at currency. A very few respondents get paid in non-us dollars.Since I selected only developers in the United States, this does not sound intuitive. Given that the number is very few and the situation is strange, I guess they are wrong entries. Let's drop the rows that contain non-us currency 
 ```{r}
 
 unique(dataset$Currency)
@@ -382,8 +417,9 @@ dataset %>%group_by(Currency) %>%summarise(cnt = n())%>%mutate(percentage=(cnt/s
 dataset<- dataset[dataset$Currency == "USD\tUnited States dollar",]
 ```
 
-About Trans 
-Let's get rows contains Yes or No
+### Trans
+
+Let's get rows containing Yes or No
 ```{r Trans }
 unique(dataset$Trans)
 ```
@@ -392,17 +428,20 @@ dataset <- dataset[(dataset$Trans=="No"|dataset$Trans=="Yes"),]
 ```
 
 
-We are going to use ConvertedCompYearly as a dependent variable. Thus, let's drop some variables that are not necessary for our project. 
+We are going to use ConvertedCompYearly as a dependent variable. Let's again drop some variables that are not necessary for our project. 
 ```{r}
 dataset <- subset(dataset,select=-c(Currency, CompTotal, CompFreq))
 dataset <- subset(dataset,select=-c(MainBranch,Country))
 dataset <- subset(dataset,select=-c(ResponseId))
 ```
 
+
 Okay. Let's end our preliminary data cleaning here. We will move onto some data analysis. 
 First, let's look at the dependent variable. 
 
-It seems that the variable is skewed a lot. Median and Mean are totally different. We need to consider dropping some values. 
+## Data Analysis
+
+It seems that the variable is skewed a lot. Median and mean are totally different. We need to consider dropping some observations. 
 
 ```{r summary_dependent}
 summary(dataset$ConvertedCompYearly)
@@ -417,7 +456,7 @@ ggplot(dataset,aes(x=0,y=ConvertedCompYearly))+
 
 
 
-Let's see a relationship between the dependent variable and a variable of our interrest. 
+Let's see a relationship between the dependent variable and a variable of interest. 
 Due to very high compensation amount, we can't see anything about the most of values of the dependent variable. Let's divide the variable into two groups, high and low. 
 ```{r YearsCode_Dependent}
 ggplot(dataset)+
@@ -435,12 +474,15 @@ This is high compenstaion. There might be a linear pattern in this.
 ggplot(high_comp)+
   geom_point(aes(x=YearsCodePro,y=ConvertedCompYearly))
 ```
-This is low compensation. It looks like that there are still some outliers. Majority of values are under 500000. Let's focus on the majority part. 
+
+This is low compensation. It looks like that there are still some outliers. Majority of values are under 500000. Since I would like to find a pattern that many observations follow, in this research, I will focus on the majority values. 
+
 ```{r lowcomp}
 ggplot(low_comp)+
   geom_point(aes(x=YearsCodePro,y=ConvertedCompYearly))
 ```
-Get majority of the dependent variable and plot. When looking at this, there is a non linear pattern. The compensation amount goes up by a certain point and move horizontaly(or maybe decrease)
+
+Get majority of the dependent variable and plot them. When looking at this, there is a non linear pattern. The compensation amount goes up by a certain point and move horizontally(or maybe decrease)
 ```{r }
 majority_part <-dataset[dataset$ConvertedCompYearly<500000,]
 ggplot(majority_part,aes(x=YearsCodePro,y=ConvertedCompYearly))+
@@ -463,15 +505,19 @@ ggplot(majority_part,aes(x=log(YearsCodePro),y=log(ConvertedCompYearly)))+
 ```
 
 
-Given these plots, I think that it would be better to focus on the majority of data point because the original dependent variable is very skewed and there is likely a patter in the majority of data points. So, in this project, let's focus on the majority part. 
+Given these plots, I think that it would be better to focus on the majority of data point because the original dependent variable is very skewed and there is likely a patter in the majority of data points. 
 
-Look at the distribution of the maojority part. Okay, in the majority part, there are some datapoints that can be considered outliers(black points). I think that it is okay to actually considered them as outliers 
+Look at the distribution of the majority part. There are some data points that can be considered outliers(black points). I think that it is okay to actually considere them outliers. 
+
 ```{r boxplot_majority}
 ggplot(dataset,aes(x=factor(0),y=ConvertedCompYearly))+
   geom_boxplot()+
   ylim(0,500000)
 ```
-Points outside of wiskers are considered as outliers in the boxplot. So, Let's calculate the upper and lower bound of the whiskers. 
+
+
+Points outside of the whiskers are considered as outliers in the boxplot. So, Let's calculate the upper and lower bound of the whiskers. 
+
 ```{r whiskers}
 upper_limit <-(173000-95000)*1.5 + 173000
 lower_limit <-(173000-95000)*1.5- 95000
@@ -491,14 +537,16 @@ ggplot(dataset,aes(x=YearsCodePro,y=ConvertedCompYearly))+
   geom_smooth(method="lm")+
   geom_smooth()
 ```
-log transformation on the dependent variable 
+
+Log transformation on the dependent variable 
 ```{r}
 ggplot(dataset,aes(x=log(YearsCodePro),y=ConvertedCompYearly))+
   geom_point()+
   geom_smooth(method="lm")+
   geom_smooth()
 ```
-log transformation on both of the variables. Even after log-log transformatino is applied, from a certain point, the pattern becoemes non linear. The compensation becomes constant or decreased from a certain point of years of professional coding experience. 
+
+Log transformation on both of the variables. Even after log-log transformatino is applied, from a certain point, the pattern becoemes non linear. The compensation becomes constant or decreased from a certain point of years of professional coding experience. 
 ```{r}
 ggplot(dataset,aes(x=log(YearsCodePro),y=log(ConvertedCompYearly)))+
   geom_point()+
@@ -507,12 +555,15 @@ ggplot(dataset,aes(x=log(YearsCodePro),y=log(ConvertedCompYearly)))+
 ```
 
 Alright, let's see a relationship between the dependent and the each of the independent variables. 
+
+By Employement 
 ```{r employement}
 ggplot(data = dataset, mapping = aes(x =Employment, y =ConvertedCompYearly))+
   geom_boxplot(horizontal=TRUE)+
   coord_flip()
 ```
-By states 
+
+By States 
 ```{r state, fig.width=12, fig.height=12}
 group_by_state <- group_by(dataset,US_State) %>% summarise(median=median(ConvertedCompYearly))
 ggplot(data=group_by_state, mapping=aes(x=reorder(US_State,median),y=median))+
@@ -522,29 +573,40 @@ ggplot(data=group_by_state, mapping=aes(x=reorder(US_State,median),y=median))+
   coord_flip()
 ```
 
-Education Level 
+By Education Level 
 ```{r }
 ggplot(data = dataset, mapping = aes(x = reorder(EdLevel,ConvertedCompYearly, FUN=median), y =ConvertedCompYearly))+
   geom_boxplot()+
+  xlab("Education Level")+
   coord_flip()
 
 ```
 Age1stCode 
+This variables is about time when respondents write the first code. 
 ```{r}
 ggplot(data = dataset, mapping = aes(x = reorder(Age1stCode,ConvertedCompYearly,FUN=median), y =ConvertedCompYearly))+
+  xlab("Age 1st Code")+
   geom_boxplot()+coord_flip()
 
 ```
+
+
 Organization Size 
 ```{r}
 ggplot(data = dataset, mapping = aes(x = reorder(OrgSize,ConvertedCompYearly,FUN=median), y =ConvertedCompYearly))+
+  xlab("Organization size")+
   geom_boxplot()+coord_flip()
 ```
+
+
 Age 
 ```{r}
 ggplot(data = dataset, mapping = aes(x = reorder(Age,ConvertedCompYearly,FUN=median), y =ConvertedCompYearly))+
+  xlab("Age")+
   geom_boxplot()+coord_flip()
 ```
+
+
 Looks like that there are some respondents who are under 18 years old. I am skeptic that there are professional developers who are under 18 years old. In this project, I consider them errors. Moreover, There are only two respondents who fall in the category. So, it is safe to drop them. 
 ```{r}
 #4 persons are under 18 
@@ -563,16 +625,22 @@ Trans
 ggplot(data = dataset, mapping = aes(x =Trans, y =ConvertedCompYearly))+
   geom_boxplot()+coord_flip()
 ```
+
+
 Ethinicity 
 ```{r }
 ggplot(data = dataset, mapping = aes(x =reorder(Ethnicity,ConvertedCompYearly,FUN=median), y =ConvertedCompYearly))+
+  xlab("Ethnicity")+
   geom_boxplot()+coord_flip()
 ```
-Accessaibility 
+
+
+Accessibility
 ```{r}
 ggplot(data = dataset, mapping = aes(x = Accessibility, y =ConvertedCompYearly))+
   geom_boxplot()+coord_flip()
 ```
+
 Mentalhealth 
 ```{r }
 ggplot(data = dataset,aes(x=MentalHealth,y=ConvertedCompYearly))+
@@ -580,17 +648,13 @@ ggplot(data = dataset,aes(x=MentalHealth,y=ConvertedCompYearly))+
 
 ```
 
+
+## Modeling
+
 Let's start modeling 
-First, let's run a linear regression using all of the independent variabels. 
-```{r linear_everything, results='hide'}
-linear_reg <- lm(ConvertedCompYearly~., data= dataset)
-summary(linear_reg)
-```
-
-
 
 Since there are too many independent variables, let's select them using backward regression. 
-We apply the featureselection on numerical columns only because R considers one of dummy variables as one variable and might drop it. 
+We apply the feature selection on numerical columns only because R considers one of dummy variables as one variable and might drop it. 
 ```{r backward}
 numerical_data <-select_if(dataset, is.numeric)
 regfit.bwd <- regsubsets(ConvertedCompYearly~. ,nvmax=45,data=numerical_data,method="backward")
@@ -613,19 +677,30 @@ regression_df <- subset(dataset,select=variables)
 regression_df$ConvertedCompYearly <- dataset$ConvertedCompYearly
 ```
 
-Run the linear regression using all of the variables. 
-```{r}
+## First Model 
+
+Adjusted R-squared is 0.3931 
+
+Let’s look at YearsCode and YearsCodePro because they are this research's primary interest. YearsCodePro is statistically significant at 5% significance level. By one year increase in professional experience, the yearly compensation raises by $2042 on average, all else equal. On the other hand, YearsCode is significant at 10 % level and the coefficient estimate is much smaller than YearsCodePro. 
+
+When looking at other columns, different variables affect the amount of compensation. States where developers live, types of developers, organization size, age, gender, and mental health affect the amount of compensation.
+
+Check plots regarding this regression model next. 
+
+```{r results='hide'}
 reg1 <- lm(ConvertedCompYearly~.,data=regression_df)
-stargazer(reg1,type = "text")
+stargazer(reg1,type = "html",out = 'reg1.doc')
+browseURL('reg1.doc')
 ```
 
 Make several plots regarding the model. 
-It looks like there is heteroskadasticity in the model. Let's see what causes it. 
+A'though there are no outliers since no square root of standardized residuals is more than 3, it looks like that there is heteroskadasticity. Let's see what causes it.  
 ```{r}
 plot(reg1)
 ```
+
 Check what causes the residual to vary 
-Maybe Age? 
+Age
 ```{r check_residual,fig.height=6,fig.width=10}
 hetero_check <- data.frame(dataset)
 hetero_check$residual <- reg1$residuals
@@ -633,57 +708,67 @@ hetero_check$fitted <- reg1$fitted.values
 ggplot(hetero_check,aes(x=fitted,y=residual,color=Age))+
   geom_point()
 ```
-Maybe EdLevel? 
+Education level
 ```{r fig.height=6,fig.width=10}
 ggplot(hetero_check,aes(x=fitted,y=residual,color=EdLevel))+
   geom_point()
 ```
-Maybe YearsCodePro 
+
+Years of experience as professional
 ```{r fig.height=6,fig.width=10}
 ggplot(hetero_check,aes(x=fitted,y=residual,color=YearsCodePro))+
   geom_point()
 ```
-YearsCode? 
+
+Years of coding 
 ```{r fig.height=6,fig.width=10}
 ggplot(hetero_check,aes(x=fitted,y=residual,color=YearsCode))+
   geom_point()
 ```
 
-EmploymentType?
+Employment Type
 ```{r fig.height=6,fig.width=10}
 ggplot(hetero_check,aes(x=fitted,y=residual,color=Employment))+
   geom_point()
 ```
-OrgSize? 
+
+Organization size 
 ```{r fig.height=6,fig.width=10}
 ggplot(hetero_check,aes(x=fitted,y=residual,color=OrgSize))+
   geom_point()
 ```
-Looks like professional code experience and age cause this situation. Let's solve this issue later. I also want to check if there is multicolllinearity. We will use VIF score. 
+Looks like professional code experience and age cause this situation. Let's solve this issue later. I also want to check if there is multicollinearity. We will use VIF score. 
 
 It does not look like there is such an issue because no score exceeds 10. 
 ```{r vif}
 vif(reg1)
 ```
  
+## Model after dropping unsignificant variabels from the frist 
  
- Let's drop Trans ad Ethnicity because they are unsignificant and their boxplots do not show significant difference. 
+Adjusted R-squared is 0.3922 
+ 
+Let's drop Trans ad Ethnicity because they are insignificant and their boxplots do not show significant difference. 
  
 ```{r}
  regression_df <-subset(regression_df,select=-c(Age1stCode,Trans,Ethnicity,Accessibility))
 ```
  
- Run a new model with new variables. There is not a significant change. 
-```{r}
+
+Run a new model with new variables. There is not a significant change. 
+```{r results='hide'}
 model_2nd <- lm(ConvertedCompYearly~.,data=regression_df)
 summary(model_2nd)
+stargazer(model_2nd,type = "html",out = 'model_2nd.doc')
+browseURL('model_2nd.doc')
 ```
  
- Look at the plot 
+ Look at the plots
 ```{r}
 plot(model_2nd)
 ```
- Given the standardized residuals plot, there is no outlier. But, what about high leverage values? They tend to distort the linear model. So, if any, let's drop them. 
+ 
+Given the standardized residuals plot, there is no outlier. But, what about high leverage values? They tend to distort the linear model. So, if any, let's drop them. 
 ```{r leverage}
 hv<-as.data.frame(hatvalues(model_2nd))
 mn<-mean(hatvalues(model_2nd))
@@ -693,16 +778,19 @@ hv_high <- subset(hv, warn%in%c("x2", "x3"))
 regression_df <-regression_df[!rownames(regression_df) %in% rownames(hv_high),]
 ```
  
-Run the model. There is not a significant change. 
-```{r}
-model_3rd <-lm(ConvertedCompYearly~.,data=regression_df)
-summary(model_3rd)
+## Model without high leverage observations
 
+Run the model. There is not a significant change. 
+```{r results='hide'}
+model_3rd <-lm(ConvertedCompYearly~.,data=regression_df)
+stargazer(model_3rd,type = "html",out = 'model_3rd.doc')
+browseURL('model_3rd.doc')
 ```
 
 ```{r}
 plot(model_3rd)
 ```
+
  Check residual and fitted values plot again. 
 ```{r fig.height=6,fig.width=10}
 hetero_check_reg3 <- data.frame(regression_df)
@@ -718,26 +806,12 @@ ggplot(hetero_check_reg3,aes(x=fitted,y=residual,color=Age))+
   geom_point()
 ```
  
-Since we know that there is a non-linear relationship between professional coding experience and compensation, let's apply log transformation. First, let's apply it on the YearsCode and yearscode pro 
+## Model with log transformation on both independent and dependent variables. 
+ 
+Let's apply log transformation on YearsCodePro, YearsCode, and the dependent variable.This is because, in the scatter plots shown in the previous section, non-linear relationships were observed. This should create a better linear relationship.
 
-```{r}
-no_leverage_df_log <- data.frame(regression_df)
-no_leverage_df_log$log_yearscode <- log(no_leverage_df_log$YearsCode)
-no_leverage_df_log$log_yearscodepro <- log(no_leverage_df_log$YearsCodePro)
-no_leverage_df_log<-subset(no_leverage_df_log,select=-c(YearsCode,YearsCodePro))
-```
- 
-Run the model
-The adjusted R2 sliggtly increase
-```{r }
-model_log_on_ind<- lm(ConvertedCompYearly~., data=no_leverage_df_log)
-summary(model_log_on_ind)
-```
-```{r}
-plot(model_log_on_ind)
-```
- 
- Let's apply it on the dependent as well. This should create a better linear relatinoship. 
+
+
 ```{r}
 
 no_leverage_df_log_log <- data.frame(regression_df)
@@ -746,26 +820,82 @@ no_leverage_df_log_log$log_yearscode <- log(no_leverage_df_log_log$YearsCode)
 no_leverage_df_log_log$log_yearscodepro <- log(no_leverage_df_log_log$YearsCodePro)
 
 
-no_leverage_df_log_log<-subset(no_leverage_df_log_log,select=-c(ConvertedCompYearly))
+no_leverage_df_log_log<-subset(no_leverage_df_log_log,select=-c(ConvertedCompYearly, YearsCode, YearsCodePro))
 
 ```
  
- 
-Run the model. 
-```{r}
+
+Adjusted R2	is 0.432.
+
+Since I applied the log transformation, the interpretation on the log transformed coefficient estimates are changed. They are interpreted in terms of percent change. For instance, by one percent increase in professional coding experience, the yearly compensation increases by 0.181%. 
+
+
+```{r results='hide'}
 model_log_log <- lm(log_compensation~., data=no_leverage_df_log_log)
-summary(model_log_log)
+stargazer(model_log_log,type = "html",out = 'model_log_log.doc')
+browseURL('model_log_log.doc')
 ```
  
+ 
+The red line in the residuals and fitted values plot becomes non linear and the residuals tend to be negative from a certain fitted value, 12. I think that this is because the growth of salary amount get smaller and smaller as the salary amount increases. So, from a certain point, there is no linear relationship. This phenomenon is also seen in the scatter plot between professional experience and the amount of compensation. 
+
+Moreover, from this plot, we can see that the variance of errors is not still constant. We might want to utilize the robust regression model to make our p-values accurate. Let's apply that.  
 ```{r}
 plot(model_log_log)
 ```
  
- The red line in the residuals and fitted values plot becomes non linear and the residuals tend to be negative. I think that this is because the growth of salary amount get smaller and smaller as the salary amount increases. So, from a certain point, there is no linear relationship. Moreover, from this plot, we can see that the variance of errors is not still constant. We might want to utilize the robustus regression model to make our p-values accurate. Let's apply that. 
+The result of this robust regression model should be considered the best accurate model of all. This is because, previous models are likely to suffer from heteroskadasticity and it causes calculation of p-values to be inaccurate. By using the robust model, the problem should be solved. Thus, I will use a result from this robust model to draw an answer for my research question. 
 
-```{r }
+Log transformed years of coding experience is not statistically sifnificant anymore. On the other hand log transformed years of professional experience is still significant at 1 % level. This tells that professional expericen matters more than the mere coding experience. The coefficient estimate is same as the previous model because we just added white standard errors to the model. By one percent increase in professional coding experience, the yearly compensation increases by 0.181%. 
+
+```{r results='hide'}
 model_log_logcluster <- coeftest(model_log_log, vcovCL, cluster = no_leverage_df_log_log$Age)
+stargazer(model_log_logcluster,type = "html",out = 'model_log_logcluster.doc')
 model_log_logcluster
+browseURL('model_log_logcluster.doc')
 ```
-```
+
+## Result 
+
+Through this project, I found that professional experience of coding positively influence the yearly amount of compensation. For each one percent increase in the professional experience of coding, there is an increase of 0.181% in the compensation amount. This is statistically significant at the 1% level. On the other hand, years of mere coding experience do not have statistically significant influence on the amount. 
+
+However, it was observed that there is a non linear relationship between years of professional experience and the compensation amount from a certain point of experience. Moreover, it was seen that the linear model overestimates the compensation when it estimated large compensation amounts, amounts over 12 in the log scale.  
+
+## Implications
+
+For future researches, I would recommend to create a model that explains that non-linearity. 
+
+
+## Conclusion
+
+My research question is how does years of experience of developers affect their salaries in the U.S.? 
+
+Through this project, I was able to find the significance of professional experience of coding on the yearly compensation amount of developers in the U.S. However, the interpretation about the effect on the compensation is only applied to developers who make less than 12 compensation in log scale. This is due to the non-linearities I discussed. Moreover, I also found out that years of coding experience does not significantly affect the compensation. 
+
+The theory I established before the project actually matched with what I observed in this project. There is a linearity in the compensation by a certain point, but from that point the amount stays same or decreases. Although it is hard to know what causes the change, one possible explanation is that when developers reach that point, they are somewhat old and start taking less pad jobs that allow them to have more personal time. 
+
+
+## References
+
+Dash, M., Bakshi, S., & Chugh, A. (2017, Nov). The Relationship Between Work Experience and Employee Compensation: A Case Study of The Indian IT Industry, Journal of Applied Management and Investment, vol 6(1), 5-10. Retrieved from 
+https://econpapers.repec.org/article/odsjournl/v_3a6_3ay_3a2017_3ai_3a1_3ap_3a5-10.htm
+
+H. Wickham. (2016, n.d.). ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag 
+
+R Core Team (2021). R: A language and environment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria. Retrieved from https://www.R-project.org/
+
+Salary.com. (n.d.). Eight Factors That Can Affect Your Pay. Retrieved from https://www.salary.com/articles/eight-factors-that-can-affect-your-pay/
+
+Sauro, J. (2014, Nov). User Experience Salaries & Calculator (2014). Measuring U. Retrieved from https://measuringu.com/salary-survey2014/
+
+Torpey, E. (2015, May). Same occupation, different pay: How wages vary. U.S. BUREAU OF LABOR STATISTICS. Retrieved from https://www.bls.gov/careeroutlook/2015/article/wage-differences.htm
+
+Yihui Xie (2021, n.d.). knitr: A General-Purpose Package for Dynamic Report Generation in R. R package version 1.37.
+
+
+
+
+
+
+
 
